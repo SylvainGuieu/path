@@ -53,7 +53,7 @@ class FtpDirectory(LocalDirectory):
 		        	
         else:
             if ftp is None:
-                raise ValueError("if no explicite sceme is present in url, a valid ftp class must be present")
+                raise ValueError("if no explicite sceme is present in url, a valid ftp connection must be present")
             username = getattr(ftp, "username", url.username)
             directory = url.path
             path = "ftp://%s%s/%s"%(username+"@" if username else "", ftp.host, directory)
