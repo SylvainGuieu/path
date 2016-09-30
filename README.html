@@ -1,0 +1,400 @@
+<h1 id="introduction">Introduction</h1>
+<p>Path provide ways to read local or distant directory or file in an object oriented way. The goal is to provide a way to browse read write files without having to take care of the root directory (local or remote).</p>
+<p>Example:</p>
+<pre><code>from path import dpath, fpath
+root = dpath(&quot;/tmp&quot;)
+root.ls()
+f = root.open(&quot;today.log&quot;) # &quot;today.log&quot; being inside root
+f.read() </code></pre>
+<p>It will works also if root is on a distant ftp server:</p>
+<pre><code>root = dpath(&quot;ftp://user:password@someserver.org//tmp&quot;)
+root.ls()
+f = root.open(&quot;today.log&quot;)
+#etc ...</code></pre>
+<p><code>dpath</code> stand for directory path and <code>fpath</code> for file path, they are derived from <code>unicode</code> objects. So old code using <code>root+ '/' + 'today.log'</code> will still work (if root is local). The <code>u''</code> is replaced by a <code>d''</code> for a directory and a <code>f''</code> for a file in its representation.</p>
+<p>The string representation of a dpath or fpath is the last argument.</p>
+<pre><code>&gt;&gt;&gt; a = dpath(&quot;/tmp&quot;, &quot;a&quot;)
+&gt;&gt;&gt; a
+d&#39;a&#39;</code></pre>
+<p>However the <code>.path</code> property gives the relative path to the parent path</p>
+<pre><code>&gt;&gt;&gt; a.path
+d&#39;/tmp/a&#39;
+&gt;&gt;&gt; b = dpath(a, &quot;b&quot;) 
+# same as
+&gt;&gt;&gt;&gt; b = a.dpath(&quot;b&quot;)
+# same as
+&gt;&gt;&gt; b = a.d(&quot;b&quot;)
+&gt;&gt;&gt; 
+&gt;&gt;&gt; b
+d&#39;b&#39;
+&gt;&gt;&gt; b.path
+d&#39;a/b&#39;</code></pre>
+<p>And <code>.fullpath</code> the full path build since the first parent</p>
+<pre><code>&gt;&gt;&gt; a = dpath(&quot;a&quot;)
+&gt;&gt;&gt; b = a.dpath(&quot;b&quot;)
+&gt;&gt;&gt; c = b.dpath(&quot;c&quot;)   
+&gt;&gt;&gt; c.fullpath
+d&#39;a/b/c&#39; </code></pre>
+<p>The representation is not necessarily the last component of a path but can be a path itself:</p>
+<pre><code>&gt;&gt;&gt; root = dpath(&quot;/tmp&quot;)
+&gt;&gt;&gt; b = root.dpath(&quot;a/b&quot;)
+&gt;&gt;&gt; b
+d&#39;a/b&#39;</code></pre>
+<p>It is important to construct a path with <code>dpath</code> or <code>fpath</code> in order to keep the connection (if exists).</p>
+<p><code>dpath</code> and <code>fpath</code> class can be easily derived. For instance redefining the <code>build</code> method is a good idea to create a structured directory:</p>
+<pre><code> class htmlpath(fpath):
+    &quot;&quot;&quot; a fpath that point to a html file &quot;&quot;&quot;
+    header = u&quot;&quot;&quot;&lt;!DOCTYPE html&gt;
+    &lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;en&quot; lang=&quot;en&quot;&gt;
+    &lt;head&gt;
+    &lt;/head&gt;
+    &quot;&quot;&quot;
+
+ class webpath(dpath):
+    &quot;&quot;&quot; a dpath that point to a website directory &quot;&quot;&quot;
+    def build(self):
+        dpath.build(self)
+        # build the subdirectories tree
+        self.makedirs(&quot;css&quot;, &quot;img/large&quot;, &quot;img/small&quot;, &quot;js&quot;)
+        # build a index that will have the header defined in htmlpath
+        index = htmlpath(self, &quot;index.html&quot;).build() 
+        # build an empty css/main.css
+        fpath(self, &quot;css&quot;, &quot;main.css&quot;).build()
+
+    def htm_ls(self):
+        return self.ls(&quot;*.html&quot;)     
+    def css_ls(self):
+        return self.dpath(&quot;css&quot;).ls(&quot;*.css&quot;)    
+
+ myweb = webpath(&quot;ftp://user:password@server.com/MyPage&quot;).build()
+ with myweb.open(&quot;index.html&quot;, &quot;a&quot;) as f:
+    f.write(&quot;&lt;body&gt;Hello this is my web page &lt;/body&gt;&quot;)</code></pre>
+<h1 id="dpath">dpath</h1>
+<p>Take any argument that build the path and on optional keyword which define the connection if not explicite in the path. So far only 'fttp' connection and a try of 'http' connection is available.</p>
+<p>The rule is to check the url scheme (e.g. <code>'ftp://'</code>) and make a connection. If a user (with or without password) is provided the login is made on the fly.</p>
+<pre><code>dataDir = dpath(&quot;ftp://user:password@server.com/data_directory&quot;)</code></pre>
+<p>would be equivalent to:</p>
+<pre><code>from ftplib import FTP
+ftp = FTP(&quot;server.com&quot;)
+ftp.connect()
+ftp.login(&quot;user&quot;, &quot;password&quot;)
+dataDir = dpath( &quot;data_directory&quot;, ftp=ftp)  
+dataDir.c is ftp #-&gt; True        </code></pre>
+<p>Or better:</p>
+<pre><code>dataDir = dpath(&quot;ftp://server.com/&quot;, &quot;data_directory&quot;)
+dataDir.c.login(&quot;user&quot;, &quot;password&quot;)</code></pre>
+<p>dpath also accept the <code>/</code> and <code>//</code> operand for quick dpath or fpath creation. <code>/</code> create a dpath subdirectory, <code>//</code> create a fpath inside the directory</p>
+<pre><code> &gt;&gt;&gt; d = dpath(&quot;/tmp&quot;)
+ &gt;&gt;&gt; d/&quot;subdir&quot;
+ d&#39;/tmp/subdir&#39;
+ &gt;&gt;&gt; d//&quot;file.txt&quot;
+ f&#39;/tmp/file.txt&#39;</code></pre>
+<p>Note that <code>dpath</code> and <code>fpath</code> are not necessarily related to something on disk at creation. However, of course, they will be at soon as you use methods like <code>.ls</code>, <code>.open</code> etc ....</p>
+<h2 id="properties">Properties:</h2>
+<dl>
+<dt>path</dt>
+<dd>a dpath. The relative path to the parent directory
+</dd>
+<dt>fullpath</dt>
+<dd>a dpath. The full path up to the first parent
+</dd>
+<dt>directory</dt>
+<dd>a dpath. dpath of the parent directory or None
+</dd>
+<dt>c</dt>
+<dd>a connection object or None. The connection object e.g. FTP object from ftplib
+</dd>
+<dt>connection</dt>
+<dd><p>connection_name, connection in a connectiontuple (mapable)</p>
+<pre><code>&gt;&gt;&gt; d = dpath(&quot;ftp://user:password@server.com/tmp&quot;)
+&gt;&gt;&gt; d.connection
+(&#39;ftp&#39;, &lt;ftplib.FTP instance at 0x1038e4830&gt;)
+&gt;&gt;&gt; other = dpath( &quot;other/directory&quot;, **d.connection )</code></pre>
+</dd>
+<dt>ext</dt>
+<dd>directory extention
+</dd>
+<dt>isremote</dt>
+<dd>True if the has a remote connection
+</dd>
+</dl>
+<h2 id="methods">Methods</h2>
+<p>unicode methods plus:</p>
+<dl>
+<dt>open</dt>
+<dd><code>relativepath, more='r'</code> open the given file inside the diretory
+</dd>
+<dt>rmtree</dt>
+<dd><code>relativepath</code> remove the subdirectory defined in path and all its content
+</dd>
+<dt>get</dt>
+<dd><code>glb='*', inside=None, child=None</code> get all file defined from glob pattern and put it inside a new directory
+</dd>
+<dt>ls</dt>
+<dd><p><code>glb='*', child=lambda x:x</code> return a list of file find in the directory that match the glob pattern child is the wrapper arround returned object.</p>
+<pre><code>d = dpath(&quot;ftp://user:password@server.com//tmp&quot;)   
+list = d.ls(&quot;*.dat&quot;, d.fpath)</code></pre>
+</dd>
+<dt>isroot</dt>
+<dd>True if the directory start with the root '/'
+</dd>
+<dt>makedirs</dt>
+<dd><p><code>*subs</code> create a leaf directory and all intermediate ones.</p>
+<pre><code> d = dpath(&quot;/tmp/2016-08-12&quot;)
+ d.build().makedirs(&quot;data/temperatures/&quot;, &quot;data/pressure&quot;, &quot;logs&quot;)</code></pre>
+</dd>
+</dl>
+<p>This will create the structure :</p>
+<pre><code>        /tmp/2016-08-12 
+            data/
+                temperatures/
+                pressures/
+            logs/         </code></pre>
+<dl>
+<dt>build</dt>
+<dd><p>build the directory on drive if not exists and return self If directory exists stay silence but the directory is a file return a OSError</p>
+<pre><code>d = dpath(&quot;/tmp/2016-08-12&quot;).build()</code></pre>
+</dd>
+<dt>stat</dt>
+<dd>attemp to return a stat result of the directory if possible not available for ftp connection
+</dd>
+<dt>getmtime</dt>
+<dd>return the modification date if allowed by the connection
+</dd>
+<dt>getctime</dt>
+<dd>return the creation date if allowed by the connection
+</dd>
+<dt>getatime</dt>
+<dd>return the append date if allowed by the connection
+</dd>
+<dt>dpath</dt>
+<dd><p><code>*p</code> return a new dpath object of subdirectories defined in <code>*p</code></p>
+<pre><code>d.dpath(&quot;subdirectory&quot;)</code></pre>
+</dd>
+</dl>
+<p>equivalent of</p>
+<pre><code>    dpath(d, &quot;subdirectory&quot;)</code></pre>
+<dl>
+<dt>cd</dt>
+<dd><p><code>*p</code> Almost the samething of dpath except that the representation of the return dpath will contain the parent directory:</p>
+<pre><code>&gt;&gt;&gt; d1 = dpath(&quot;/tmp&quot;)
+&gt;&gt;&gt; d1.dpath(&quot;subdir&quot;)
+d&#39;subdir&#39;
+&gt;&gt;&gt; d2.cd(&quot;subdir&quot;)
+d&#39;/tmp/subdir&#39;</code></pre>
+</dd>
+</dl>
+<p>However <code>d1</code> and <code>d2</code> point to the same phisical directory</p>
+<dl>
+<dt>fpath</dt>
+<dd><code>*p</code> return a new fpath where the path defined by <code>*p</code> is relative to the directory
+</dd>
+<dt>isdir</dt>
+<dd><code>path</code> return True if the relative path to the directory is a directory. not to be confound with <code>check()</code> which check is the dpath itself is what excpected (a directory)
+</dd>
+<dt>isdir</dt>
+<dd><code>path</code> return True if the relative path to the directory is a file
+</dd>
+<dt>exists</dt>
+<dd>return True if the dpath exists
+</dd>
+<dt>psplit</dt>
+<dd><p>split the dpath into two dpath, root and final coponant</p>
+<pre><code>&gt;&gt;&gt; d = dpath(&quot;/tmp/a/b/c&quot;)       
+&gt;&gt;&gt; d.psplit()
+(d&#39;/tmp/a/b&#39;, d&#39;c&#39;)</code></pre>
+</dd>
+<dt>basename</dt>
+<dd>return the dpath of the final component
+</dd>
+<dt>splitext</dt>
+<dd><p>Split the extension return a (dpath, unicode) tuple</p>
+<pre><code>  d = dpath(&quot;/tmp/config.d&quot;)
+  d.splitext()
+  (d&#39;/tmp/config&#39;, u&#39;.d&#39;)</code></pre>
+</dd>
+<dt>expanduser</dt>
+<dd>expand the '~user' to the user path
+</dd>
+<dt>expandvars</dt>
+<dd><p>expand any $VAR in the path</p>
+<pre><code>&gt;&gt;&gt; d = path.dpath(&quot;$HOME/tmp&quot;)
+&gt;&gt;&gt; d.expandvars()
+d&#39;/path/to/my/home/tmp&#39;</code></pre>
+</dd>
+<dt>has</dt>
+<dd><code>path</code> return True if the given relative path exists
+</dd>
+<dt>dbreak</dt>
+<dd><p><code>*path</code> return iteraot on subpath</p>
+<pre><code>d = dpath(&quot;/tmp&quot;) 
+for sub in d.dbreak( &quot;a&quot;, &quot;b&quot;, &quot;c&quot;):
+  sub.build()
+  print &quot;directory &#39;%s&#39; created inside &#39;%d&quot;%(sub,d)</code></pre>
+</dd>
+</dl>
+<p>Will create the 'tmp/a', '/tmp/b' and '/tmp/c' directories if they do not exists</p>
+<dl>
+<dt>fbreak</dt>
+<dd><p><code>*path</code> Samething than fbreak but for files</p>
+<pre><code>    d = dpath(&quot;/tmp&quot;)
+    for file in d.fbreak(&quot;a.txt&quot;,&quot;b.txt&quot;, &quot;c.txt&quot;):
+        with file.open(&quot;w&quot;) as g:
+            g.write(&quot;I am the file %s&quot;%file)</code></pre>
+</dd>
+<dt>checkout</dt>
+<dd>check if this is a real directory on disk and return self or raise TypeError
+</dd>
+<dt>check</dt>
+<dd>return True if the dpath is a directory
+</dd>
+<dt>dirname</dt>
+<dd>same has basename
+</dd>
+<dt>normpath</dt>
+<dd>normatlize the path, &quot;..&quot; and &quot;.&quot; are replaced
+</dd>
+<dt>walk</dt>
+<dd><p><code>func, arg</code> Directory tree walk with callback function</p>
+<p>For each directory in the directory tree rooted at top (including top itself, but excluding '.' and '..'), call func(arg, d, fnames). dirname is the dpath of the directory, and fnames a list of the names of the files and subdirectories in dirname (excluding '.' and '..') inside fpath or dpath object.</p>
+<p>func may modify the fnames list in-place (e.g. via del or slice assignment), and walk will only recurse into the subdirectories whose names remain in fnames; this can be used to implement a filter, or to impose a specific order of visiting. No semantics are defined for, or required of, arg, beyond that arg is always passed to func. It can be used, e.g., to pass a filename pattern, or a mutable object designed to accumulate</p>
+<pre><code>    &gt;&gt;&gt; d = dpath(&quot;tmp&quot;)
+    &gt;&gt;&gt; dir_list = []
+    &gt;&gt;&gt; d.walk( lambda l,d,names: l.append(d.fullpath), dir_list)</code></pre>
+<p>Get the path to all jpg or png only</p>
+<pre><code>    &gt;&gt;&gt; func = lambda l,d,names: l.extend([f.fullpath for f in names if f.ext.lower() in (&quot;.jpg&quot;,&quot;.jpeg&quot;,&quot;.png&quot;)])
+    &gt;&gt;&gt; picture_list = []
+    &gt;&gt;&gt; d.walk( func , picture_list)</code></pre>
+</dd>
+</dl>
+<h1 id="fpath">fpath</h1>
+<p>As <code>dpath</code>, take any argument that build the path and on optional keyword which define the connection if not explicite in the path. So far only 'fttp' connection and try of 'http' connection is available. Also an extra keyword is 'header' which is used by the build method.</p>
+<h2 id="properties-1">Properties</h2>
+<dl>
+<dt>path</dt>
+<dd>a fpath. The relative path to the parent directory
+</dd>
+<dt>fullpath</dt>
+<dd>a fpath. The full path up to the first parent
+</dd>
+<dt>filename</dt>
+<dd>name of file in a string
+</dd>
+<dt>directory</dt>
+<dd>a dpath. dpath of the parent directory or None
+</dd>
+<dt>ext</dt>
+<dd>file extention
+</dd>
+<dt>body</dt>
+<dd>file name body
+</dd>
+<dt>c</dt>
+<dd>a connection object or None. The connection object e.g. FTP object from ftplib
+</dd>
+<dt>connection</dt>
+<dd><p>connection_name, connection in a connection-tuple (mapable)</p>
+<pre><code>&gt;&gt;&gt; d = dpath(&quot;ftp://user:password@server.com/tmp&quot;)
+&gt;&gt;&gt; d.connection
+(&#39;ftp&#39;, &lt;ftplib.FTP instance at 0x1038e4830&gt;)
+&gt;&gt;&gt; other = dpath( &quot;other/directory&quot;, **d.connection )</code></pre>
+</dd>
+</dl>
+<h2 id="methods-1">Methods</h2>
+<p>unicode methods plus:</p>
+<dl>
+<dt>open</dt>
+<dd><p><code>mode='r'</code> open the file in the given mode</p>
+<p>tempfile = fpath(&quot;ftp//user:paswword@server.com/temperature.txt&quot;) with tempfile.open('w') as f: f.write(&quot;temp: 20.5 degree&quot;)</p>
+</dd>
+<dt>stat</dt>
+<dd>attemp to return a stat result of the file if possible not available for ftp connection
+</dd>
+<dt>getmtime</dt>
+<dd>return the modification date if allowed by the connection
+</dd>
+<dt>getctime</dt>
+<dd>return the creation date if allowed by the connection
+</dd>
+<dt>getatime</dt>
+<dd>return the append date if allowed by the connection
+</dd>
+<dt>putin</dt>
+<dd><p><code>*insides</code> put (copy) the file inside subdirectories</p>
+<pre><code>index = fpath(&quot;template/index.html&quot;)
+web = dpath(&quot;/Library/Server/Web/Documents&quot;)
+index.putin( web/&quot;data&quot;, web/&quot;log&quot; )</code></pre>
+</dd>
+<dt>copyto</dt>
+<dd><p><code>*tos</code> copy the file to a list of file path</p>
+<pre><code>index = fpath(&quot;template/generic_index.html&quot;)
+web = dpath(&quot;/Library/Server/Web/Documents&quot;)
+index.putin( web/&quot;data/index.html&quot;, web/&quot;log/index.html&quot; )</code></pre>
+</dd>
+<dt>splitext</dt>
+<dd><p>Split the extension return a (fpath, unicode) tuple</p>
+<pre><code>  f = fpath(&quot;/tmp/config.txt&quot;)
+  f.splitext()
+  (f&#39;/tmp/config&#39;, u&#39;.txt&#39;)</code></pre>
+</dd>
+<dt>expanduser</dt>
+<dd>expand the '~user' to the user path
+</dd>
+<dt>expandvars</dt>
+<dd><p>expand any $VAR in the path</p>
+<pre><code>&gt;&gt;&gt; f = path.fpath(&quot;$HOME/tmp/test.txt&quot;)
+&gt;&gt;&gt; f.expandvars()
+f&#39;/path/to/my/home/tmp/test.txt&#39;</code></pre>
+</dd>
+<dt>normpath</dt>
+<dd>normatlize the path, &quot;..&quot; and &quot;.&quot; are replaced
+</dd>
+<dt>basename</dt>
+<dd>return the fpath of the final component
+</dd>
+<dt>dirname</dt>
+<dd>return the dpath directory name
+</dd>
+<dt>build</dt>
+<dd><p><code>header=None</code> create the file if it does not exists and return self. A header can be provided has a string or a function that return a string. Also the fpath can have a default header.</p>
+<pre><code>class htmlpath(fpath):
+    header = u&quot;&quot;&quot;&lt;!DOCTYPE html&gt;
+    &lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;en&quot; lang=&quot;en&quot;&gt;
+    &lt;head&gt;
+    &lt;/head&gt;
+    &quot;&quot;&quot;
+
+index = htmlpath(&quot;index.html&quot;).build()
+with index.open(&#39;a&#39;) as f:
+    f.write(&quot;&lt;body&gt;&lt;h1&gt;This is the main page&lt;/h1&gt;&lt;/body&gt;&quot;)</code></pre>
+</dd>
+<dt>create</dt>
+<dd><code>header=None, clobber=False</code> Same as build but raise error if file exists and clobber=False or erase the file anyway if clobber=True
+</dd>
+<dt>replace_ext</dt>
+<dd><p><code>newext</code> replace the extention to a new one</p>
+<pre><code>pic = fpath(&quot;landscape.JPEG&quot;)
+pic = pic.replace_ext(&quot;jpg&quot;)</code></pre>
+</dd>
+<dt>exists</dt>
+<dd>return True if the fpath exists
+</dd>
+<dt>psplit</dt>
+<dd><p>split the dpath into (dpath, fpath) tuple</p>
+<pre><code>&gt;&gt;&gt; f = fpath(&quot;/tmp/a/b/c.txt&quot;)       
+&gt;&gt;&gt; f.psplit()
+(d&#39;/tmp/a/b&#39;, f&#39;c.txt&#39;)</code></pre>
+</dd>
+<dt>splitext</dt>
+<dd><p>Split the extension return a (fpath, unicode) tuple</p>
+<pre><code>  f = fpath(&quot;/tmp/config.d&quot;)
+  f.splitext()
+  (f&#39;/tmp/config&#39;, u&#39;.d&#39;)</code></pre>
+</dd>
+<dt>check</dt>
+<dd>return True is fpath exists and is a file
+</dd>
+<dt>checkout</dt>
+<dd>check if fpath exists and is a file and return self
+</dd>
+</dl>
