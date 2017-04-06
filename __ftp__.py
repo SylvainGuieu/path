@@ -154,6 +154,14 @@ class FtpDirectory(LocalDirectory):
     def getctime(self, file=''):
         raise RuntimeError("Cannot get creation time from ftp connection. Modification date only")            
     
+    def getsize(self, file=''):
+        ftp = self._get_ftp()
+        file = ftp_path2path(ftp, file)        
+        return ftp.size(os.path.join(self.remotedirectory, file))
+        #raise RuntimeError("Cannot get size from ftp connection. Modification date only")            
+        
+
+
     def exists(self):
         return self.remotedirectory in self.cd("..").ls()
 

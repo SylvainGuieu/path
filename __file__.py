@@ -86,7 +86,7 @@ class LocalDirectory(object):
         #return len(self.ls("."))>0    
 
     def stat(self, file=''):
-        return os.path.stat(os.path.join(self.directory,file))      
+        return os.stat(os.path.join(self.directory,file))      
 
     def getmtime(self, file=''):
         return os.path.getmtime(os.path.join(self.directory,file))    
@@ -97,6 +97,9 @@ class LocalDirectory(object):
     def getatime(self, file=''):
         return os.path.getatime(os.path.join(self.directory,file))                  
 
+    def getsize(self,file=''):
+        return os.path.getsize(os.path.join(self.directory,file)) 
+
     def open(self, file, mode='r'):
         """ open a file inside directory """
         return open(os.path.join(self.directory, file), mode) 
@@ -106,7 +109,7 @@ class LocalDirectory(object):
         
     def isdir(self, dirname):
         return os.path.isdir(os.path.join(self.directory, dirname))
-
+        
     def cd(self, a, *p):
         _, connection = self.connection
         path = os.path.normpath(os.path.join(self.dirname, a, *p))

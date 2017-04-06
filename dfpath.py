@@ -253,7 +253,10 @@ class dpath(unicode):
         """ return the sccess date if allowed by the connection """
         return self.handler.getatime()              
     
-    
+    def getsize(self):
+        """  Return the size of a dpath D, reported by D.stat() """
+        return self.handler.getsize()              
+        
                 
     def dpath(self, *p):
         """ return a new dpath of subdirectory where the root is self 
@@ -567,7 +570,10 @@ class fpath(unicode):
         return self.directory.handler.getatime(self.filename)   
     
     def getctime(self):
-        return self.directory.handler.getctime(self.filename)           
+        return self.directory.handler.getctime(self.filename)  
+
+    def getsize(self):
+        return self.directory.handler.getsize(self.filename)           
 
     def putin(self, *insides):
         with self.open("rb") as f:

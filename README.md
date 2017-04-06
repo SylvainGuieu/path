@@ -88,13 +88,15 @@ the `build` method is a good idea to create a structured directory:
             index = htmlpath(self, "index.html").build() 
             # build an empty css/main.css
             fpath(self, "css", "main.css").build()
+            return self
 
-        def htm_ls(self):
+        def html_ls(self):
             return self.ls("*.html")     
         def css_ls(self):
             return self.dpath("css").ls("*.css")    
 
-     myweb = webpath("ftp://user:password@server.com/MyPage").build()
+     myweb = webpath("ftp://user:password@server.com/MyPage")
+     myweb.build()
      with myweb.open("index.html", "a") as f:
         f.write("<body>Hello this is my web page </body>")
 
@@ -202,7 +204,8 @@ makedirs\
 create a leaf directory and all intermediate ones.
 
          d = dpath("/tmp/2016-08-12")
-         d.build().makedirs("data/temperatures/", "data/pressure", "logs")
+         d.build()
+         d.makedirs("data/temperatures/", "data/pressure", "logs")
         
 
 This will create the structure :
@@ -360,9 +363,11 @@ Directory tree walk with callback function
             >>> dir_list = []
             >>> d.walk( lambda l,d,names: l.append(d.fullpath), dir_list)
             
-    Get the path to all jpg or png only             
 
-            >>> func = lambda l,d,names: l.extend([f.fullpath for f in names if f.ext.lower() in (".jpg",".jpeg",".png")])
+Get the path to all jpg or png only             
+
+            >>> exts = (".jpg",".jpeg",".png")
+            >>> func = lambda l,d,names: l.extend([f.fullpath for f in names if f.ext.lower() in exts])
             >>> picture_list = []
             >>> d.walk( func , picture_list) 
 

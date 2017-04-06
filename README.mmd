@@ -78,6 +78,7 @@ It is important to construct a path with `dpath` or `fpath` in order to keep the
             index = htmlpath(self, "index.html").build() 
             # build an empty css/main.css
             fpath(self, "css", "main.css").build()
+            return self
 
         def htm_ls(self):
             return self.ls("*.html")     
