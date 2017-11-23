@@ -5,6 +5,12 @@ from shutil import rmtree
 import glob
 import os
 
+try:    
+    _P3 = False
+except:    
+    _P3 = True
+    basestring = (str, bytes)
+
 class LocalDirectory(object):
     """ Local directory handler """
     def __init__(self, directory, _dummy_=None):

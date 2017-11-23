@@ -16,6 +16,7 @@ try:
 except:
     from io import StringIO, BytesIO # python 3
     _P3 = True
+    basestring = (str, bytes)
 
 
 VERBOSE = True

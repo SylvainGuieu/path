@@ -11,10 +11,12 @@ import os
 
 try: 
     unicode
+    _P3 = False
 except NameError:
     unicode = str
     basestring = (str, bytes)
-
+    _P3 = True
+    
 class dpath(unicode):
     """ Path to a directory 
     
