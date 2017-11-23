@@ -1,9 +1,19 @@
 from __future__ import print_function
 from .shared import scheme_lookup, remove_roots
-from urlparse import urlsplit, urlparse
-from .__file__ import LocalDirectory
+try:
+    from urlparse import urlsplit, urlparse #python 2.7
+except:
+    from urllib.parse import urlsplit, urlparse
+
+
+from .__local__ import LocalDirectory
 import os
 
+try: 
+    unicode
+except NameError:
+    unicode = str
+    basestring = (str, bytes)
 
 class dpath(unicode):
     """ Path to a directory 
@@ -400,7 +410,21 @@ class dpath(unicode):
             yield self.fpath(f)        
     
     def checkout(self):
-        """ check if this is a real directory on disk and return self or raise TypeError """
+        """ check if this is a real directory on disk and return self or raise TypeError 
+        
+        This allow for quick directory check. 
+
+            >>> d = dpath("/tmp")
+            >>> d is d.checkout()
+            True
+            
+            try:
+                datafile = dpath("/tmp").checkout().fpath("data.txt")
+            except TypeError:
+                raise IOError("there is no '/tmp' directory")
+            
+
+        """
         if not self.handler.check():
             raise TypeError("'%s' is not a directory"%self)
         return self   
@@ -485,7 +509,7 @@ class dpath(unicode):
 
     @property
     def isremote(self):
-        """True if the has a remote connection"""
+        """True if the dpath has a remote connection"""
         return self.handler.isremote
 
     @property
@@ -661,11 +685,11 @@ class fpath(unicode):
         this one does not exists. 
         The fpath object can also have a header attribute taken by default        
         
-        Header can also callable method which return a string.
+        Header can also be callable method which return a string.
         example : 
-            header = fpath("/a/b/header.txt")
-            newfile = fpath("/a/b/data.txt")
-            newfile.create(header.read)
+            >>> header = fpath("/app/template/header.txt")
+            >>> newfile = fpath("/app/data/main_article.txt")
+            >>> newfile.create(header.read)
         """
         if not clobber and self.exists():
             raise ValueError("File already exists, user clobber=True to overwrite")
@@ -685,7 +709,7 @@ class fpath(unicode):
                 f.write("")
 
     def checkout(self):
-        """ check if fpath exists and is a file and return self """
+        """ check if fpath exists and is a file and return self if existe or raise TypeError if not"""
         if not self.check():
             raise TypeError("'%s' is not a file"%self)
         return self   

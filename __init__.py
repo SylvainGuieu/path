@@ -19,11 +19,11 @@ One can than change `maindir` to whatever suitable directory.
 It can also be a ftp path:  
 >>> maindir = dpath("ftp://user:password@server.com//tmp")
 """
-import __file__
-del __file__
-import __ftp__
+from . import __local__
+del __local__
+from . import __ftp__
 del __ftp__
-import __http__
+from . import __http__
 del __http__
 
 from .api import *

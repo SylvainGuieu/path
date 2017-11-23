@@ -1,13 +1,21 @@
 from __future__ import print_function
 from .shared import log, scheme_lookup, connection
-from .__file__ import LocalDirectory
+from .__local__ import LocalDirectory
 from ftplib import FTP, error_perm, error_temp, all_errors
-from urlparse import urlsplit, urlparse
+try:
+    from urlparse import urlsplit, urlparse #python 2.7
+except:
+    from urllib.parse import urlsplit, urlparse
 
 import time
 import glob
 import os
-import StringIO
+try:
+    from StringIO import StringIO # python 2.7
+    _P3 = False
+except:
+    from io import StringIO, BytesIO # python 3
+    _P3 = True
 
 
 VERBOSE = True
@@ -27,7 +35,7 @@ class FtpDirectory(LocalDirectory):
             if ftp is None:
                 ftp = FTP(url.hostname, url.username, url.password)
                 #ftp = FTP(url.hostname)
-                ftp.connect(url.hostname, url.port)
+                ftp.connect(url.hostname, url.port or 0)
                 if url.username:
                     ftp.login(url.username, url.password)
 
@@ -50,7 +58,7 @@ class FtpDirectory(LocalDirectory):
             if username:
                 path += username + "@"
             path += hostname + "/" + directory
-		        	
+                    
         else:
             if ftp is None:
                 raise ValueError("if no explicite sceme is present in url, a valid ftp connection must be present")
@@ -114,8 +122,8 @@ class FtpDirectory(LocalDirectory):
         return remove_roots(ftp_ls(ftp, os.path.join(self.remotedirectory,glob)), self.remotedirectory)        
 
     def listdir(self):
-     	ftp = self._get_ftp()
-     	return ftp.nlst()
+        ftp = self._get_ftp()
+        return ftp.nlst()
         
     def get(self, files, inside, child=None):
         """ 
@@ -130,12 +138,24 @@ class FtpDirectory(LocalDirectory):
         file = ftp_path2path(ftp, file)        
         return [child(f) for f in ftp_mget(ftp, os.path.join(self.remotedirectory, files), inside)]
 
-    def open(self, file, mode='r'):    
-        """ open a file inside directory """ 
-        ftp =  self._get_ftp()
-        file = ftp_path2path(ftp, file)
-        #print ("FTP %s"% os.path.join(self.remotedirectory, file))
-        return FtpFile(ftp, os.path.join(self.remotedirectory, file), mode)  
+    if _P3:
+        def open(self, file, mode='r'):    
+            """ open a file inside directory """ 
+            ftp =  self._get_ftp()
+            file = ftp_path2path(ftp, file)
+            #print ("FTP %s"% os.path.join(self.remotedirectory, file))
+            if 'b' in mode:
+                return FtpBytesFile(ftp, os.path.join(self.remotedirectory, file), mode)  
+            else:
+                return FtpFile(ftp, os.path.join(self.remotedirectory, file), mode)  
+
+    else:
+        def open(self, file, mode='r'):    
+            """ open a file inside directory """ 
+            ftp =  self._get_ftp()
+            file = ftp_path2path(ftp, file)
+            #print ("FTP %s"% os.path.join(self.remotedirectory, file))
+            return FtpFile(ftp, os.path.join(self.remotedirectory, file), mode)  
 
     def getmtime(self,file=''):
         ftp = self._get_ftp()
@@ -146,7 +166,7 @@ class FtpDirectory(LocalDirectory):
         return time.mktime(t)
 
     def stat(self, file=''):
-    	raise RuntimeError("Cannot get stat from ftp connection. Modification date only")  
+        raise RuntimeError("Cannot get stat from ftp connection. Modification date only")  
 
     def getatime(self, file=''):
         raise RuntimeError("Cannot get access time from ftp connection. Modification date only")    
@@ -185,8 +205,8 @@ class FtpDirectory(LocalDirectory):
         ftp.storlines('STOR %s'%os.path.join(self.remotedirectory,file), f)
 
     def isfile(self, filename):
-    	ftp = self._get_ftp()
-    	filename = ftp_path2path(ftp, filename)     
+        ftp = self._get_ftp()
+        filename = ftp_path2path(ftp, filename)     
         return ftp_isfile(ftp, os.path.join(self.remotedirectory, filename))    
 
     def isdir(self, dirname):
@@ -236,7 +256,7 @@ class FtpDirectory(LocalDirectory):
 scheme_lookup['ftp'] = FtpDirectory
 
 
-class FtpFile(StringIO.StringIO): 
+class FtpFile(StringIO): 
     def __init__(self, ftp,  file, mode='r'):
         self.ftp = ftp 
         self.file = file
@@ -244,7 +264,7 @@ class FtpFile(StringIO.StringIO):
             buf = self._ftpread()
         if 'w' in mode:
             buf = ''
-        StringIO.StringIO.__init__(self, buf)            
+        StringIO.__init__(self, buf)            
         if 'a' in mode:
             self.seek(0,2)        
         self.mode = mode
@@ -252,24 +272,39 @@ class FtpFile(StringIO.StringIO):
     def __repr__(self):
         return "<open file '%s' in ftp '%s', mode '%s' at %0x>"%(self.file, self.ftp.host, self.mode, id(self))
 
-    def _ftpread(self):
-        ftp = self.ftp
-        strout = StringIO.StringIO()
-        ftp.retrbinary("RETR %s"%(self.file), strout.write)
-        strout.seek(0)
-        return strout.read()
+    if _P3:
+        def _ftpread(self):
+            ftp = self.ftp
+            strout = BytesIO()
+            ftp.retrbinary("RETR %s"%(self.file), strout.write)
+            strout.seek(0)
+            return strout.read().decode()
+    else:
+        def _ftpread(self):
+            ftp = self.ftp
+            strout = StringIO()
+            ftp.retrbinary("RETR %s"%(self.file), strout.write)
+            strout.seek(0)
+            return strout.read()
 
-    def _ftpwrite(self, strin):
-        f = StringIO.StringIO(strin)
-        ftp = self.ftp
-        ftp.storbinary('STOR %s'%(self.file), f)            
+    if _P3:
+        def _ftpwrite(self, strin):
+            f = BytesIO(strin.encode())
+            ftp = self.ftp            
+            ftp.storbinary('STOR %s'%(self.file), f) 
+
+    else:
+        def _ftpwrite(self, strin):
+            f = StringIO(strin)
+            ftp = self.ftp
+            ftp.storbinary('STOR %s'%(self.file), f)            
 
     def close(self):
         mode = self.mode
         if not 'r' in mode:
             self.seek(0)            
             self._ftpwrite(self.read())        
-        StringIO.StringIO.close(self)
+        StringIO.close(self)
 
     @property
     def name(self):
@@ -279,14 +314,75 @@ class FtpFile(StringIO.StringIO):
         return fpath(file, ftp=self.ftp)
 
     def __del__(self):
-        self.close()
-                        
+        if not self.closed:                
+            self.close()
+
     def __exit__(self, *args):
         self.close()
 
     def __enter__(self):
         return self        
 
+
+
+if _P3:
+    class FtpBytesFile(BytesIO): 
+        def __init__(self, ftp,  file, mode='rb'):
+            self.ftp = ftp 
+            self.file = file
+            if not 'b' in mode:
+                raise RunTimeError("should be opened as binary")
+
+            if 'r' in mode or 'a' in mode:
+                buf = self._ftpread()
+            elif 'w' in mode:
+                buf = b''
+            else:
+                buf = self._ftpread()
+            BytesIO.__init__(self, buf)            
+            if 'a' in mode:
+                self.seek(0,2)        
+            self.mode = mode
+
+        def __repr__(self):
+            return "<open file '%s' in ftp '%s', mode '%s' at %0x>"%(self.file, self.ftp.host, self.mode, id(self))
+
+        
+        def _ftpread(self):
+            ftp = self.ftp
+            strout = BytesIO()
+            ftp.retrbinary("RETR %s"%(self.file), strout.write)
+            strout.seek(0)
+            return strout.read()
+    
+        def _ftpwrite(self, bytesin):
+            f = BytesIO(bytesin)
+            ftp = self.ftp            
+            ftp.storbinary('STOR %s'%(self.file), f) 
+
+        def close(self):
+            mode = self.mode
+            if not 'r' in mode:
+                self.seek(0)            
+                self._ftpwrite(self.read())        
+            BytesIO.close(self)
+
+        @property
+        def name(self):
+            return self.file
+        @property
+        def path(self):
+            return fpath(file, ftp=self.ftp)
+
+        def __del__(self):
+            if not self.closed:                
+                self.close()
+
+        def __exit__(self, *args):
+            self.close()
+
+        def __enter__(self):
+            return self        
 
 
 #####################################################################
@@ -296,19 +392,19 @@ class FtpFile(StringIO.StringIO):
 #####################################################################
 
 def ftp_path2path(ftp,path):
-	""" take a ftp connection and a path return the true path 
-	if path is an url or path. 
-	If the url hostanme or login is different than 
-	"""
-	url = urlsplit(path)
-	if not url.hostname:
-		return path
-	if url.hostname!=ftp.host:
-		raise ValueError("connection mismatch : '%s', '%s'"%(url.hostname, ftp.host))
+    """ take a ftp connection and a path return the true path 
+    if path is an url or path. 
+    If the url hostanme or login is different than 
+    """
+    url = urlsplit(path)
+    if not url.hostname:
+        return path
+    if url.hostname!=ftp.host:
+        raise ValueError("connection mismatch : '%s', '%s'"%(url.hostname, ftp.host))
 
-	if url.username and url.username!=getattr(ftp,"username", url.username):
-		raise ValueError("connection username mismatch : '%s', '%s'"%(url.username, ftp.username))
-	return url.path[1:] # remove the root '/'
+    if url.username and url.username!=getattr(ftp,"username", url.username):
+        raise ValueError("connection username mismatch : '%s', '%s'"%(url.username, ftp.username))
+    return url.path[1:] # remove the root '/'
 
 
 

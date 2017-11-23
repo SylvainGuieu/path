@@ -2,14 +2,23 @@
 # uQvwg63reC%u
 from __future__ import print_function
 from .shared import log, scheme_lookup, connection
-from .__file__ import LocalDirectory
+from .__local__ import LocalDirectory
 from ftplib import FTP, error_perm, error_temp, all_errors
-from urlparse import urlsplit, urlparse
+
+try:
+    from urlparse import urlsplit, urlparse #python 2.7
+except:
+    from urllib.parse import urlsplit, urlparse
+
 
 import time
 import glob
 import os
-import StringIO
+try:
+    from StringIO import StringIO # python 2.7
+except:
+    from io import StringIO
+
 
 from bs4 import BeautifulSoup
 import requests
@@ -121,14 +130,14 @@ class HttpHandler(LocalDirectory):
 scheme_lookup['http'] = HttpHandler
 
 
-class HttpFile(StringIO.StringIO): 
+class HttpFile(StringIO): 
     def __init__(self, http,  file, mode='r'):
         if 'w' in mode or 'a' in mode:
             raise OSError("http file are read only")
         
         buf = requests.get(os.path.join(http.url, file)).text
                 
-        StringIO.StringIO.__init__(self, buf)                          
+        StringIO.__init__(self, buf)                          
         self.file = file
         self.host = urlsplit(http.url).hostname    
         self.http = http
