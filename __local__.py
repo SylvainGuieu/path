@@ -6,8 +6,9 @@ import glob
 import os
 
 try:    
+    unicode
     _P3 = False
-except:    
+except NameError:    
     _P3 = True
     basestring = (str, bytes)
 
